@@ -1,0 +1,543 @@
+# AOC 2024
+
+## Day1
+
+```elixir
+read_input = fn file -> 
+  file
+  |> File.read!()
+  |> String.split("\r\n")
+  |> Enum.map(&String.split(&1, " ", trim: true))
+  |> Enum.map(&{List.first(&1), List.last(&1)})
+  |> Enum.reduce({[], []}, fn {num1, num2}, {a, b} -> {[String.to_integer(num1) | a], [String.to_integer(num2) | b]} end)
+  |> then(fn {a, b} -> {Enum.reverse(a), Enum.reverse(b)} end)
+end
+{left, right} = read_input.("AOC/day1/example.txt")
+```
+
+```elixir
+defmodule Day1 do
+  def take_smallest(list) do
+    smallest = 
+      list
+      |> Enum.sort()
+      |> List.first()
+    {smallest, List.delete(list, smallest)}
+  end
+
+  def sim_score(digit, right) do
+    score = Enum.reduce(right, 0, &if(&1 == digit, do: &2 + 1, else: &2))
+    score * digit
+  end
+
+  def compare(a, b), do: abs(a - b)
+
+  def solve([], [], total), do: total
+  
+  def solve(left, right, total) do
+    {a, left} = take_smallest(left)
+    {b, right} = take_smallest(right)
+    solve(left, right, total + compare(a,b))
+  end
+
+  def solve_part_two(left, right) do
+    left
+    |> Enum.map(&Day1.sim_score(&1, right))
+    |> Enum.sum()
+  end
+end
+```
+
+```elixir
+Day1.solve(left, right, 0)
+```
+
+```elixir
+{left, right} = read_input.("AOC/day1/input.txt")
+```
+
+```elixir
+Day1.solve(left, right, 0)
+```
+
+```elixir
+{left, right} = read_input.("AOC/day1/example.txt")
+Day1.solve_part_two(left, right)
+```
+
+```elixir
+{left, right} = read_input.("AOC/day1/input.txt")
+Day1.solve_part_two(left, right)
+```
+
+## Day2
+
+```elixir
+parsed = File.read!("AOC/day2/input.txt")
+|> String.split("\r\n", trim: true)
+|> Enum.map(&String.split(&1, " "))
+|> Enum.map(fn list -> 
+  Enum.map(list, &String.to_integer/1)  
+end)
+```
+
+```elixir
+defmodule Day2 do
+  def valid_pair(current, last, tendency) do
+    trend? = if tendency > 0 do
+      current > last
+    else
+      current < last
+    end
+
+    trend? and (current != last and abs(current - last) <= 3)
+  end
+
+  def get_tendency(list) do
+    list
+    |> Enum.reduce({List.first(list), []}, fn digit, {last, acc} -> {digit, [digit - last | acc]} end)
+    |> elem(1)
+    |> Enum.sum()
+  end
+
+  def solve_for_line(list) do
+    tendency = get_tendency(list)
+
+    list
+    |> Enum.slice(1..-1//1)
+    |> Enum.reduce({List.first(list), true}, fn digit, {last, checks} ->
+      {digit, valid_pair(digit, last, tendency) and checks}
+    end)
+    |> elem(1)
+  end
+
+  def solve_for_line_part_two(list, index \\ -1) do
+    list_to_test = if index == -1 do
+      list
+    else
+      List.delete_at(list, index)
+    end
+    
+    cond do
+      solve_for_line(list_to_test) ->
+        true
+
+      index > Enum.count(list) - 1 ->
+        false
+
+      true ->
+        solve_for_line_part_two(list, index + 1)
+    end
+  end
+end
+```
+
+```elixir
+parsed
+|> Enum.map(&Day2.solve_for_line/1)
+|> Enum.count(& &1 == true)
+```
+
+```elixir
+parsed
+|> Enum.map(&Day2.solve_for_line_part_two/1)
+|> Enum.count(& &1 == true)
+```
+
+## Day3
+
+```elixir
+corrupted_memory_example = "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))"
+```
+
+```elixir
+scan = fn input -> 
+  ~r/mul\(\d+,\d+\)/
+  |> Regex.scan(input)
+  |> List.flatten()
+  |> Enum.map(fn op -> 
+    [a, b] = op
+    |> String.replace(["(", ")", "mul"], "")
+    |> String.split(",")
+    |> Enum.map(&String.to_integer/1)
+
+    a * b
+  end)
+  |> Enum.sum()
+end
+
+scan.(corrupted_memory_example)
+```
+
+```elixir
+scan.(File.read!("AOC/day3/input.txt"))
+```
+
+```elixir
+o_wow_really_surprised = "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))"
+```
+
+```elixir
+regex = ~r/(mul\(\d+,\d+\)|do\(\)|don't\(\))/
+Regex.scan(regex, File.read!("AOC/day3/input.txt"), capture: :first)
+|> List.flatten()
+|> Enum.map(fn 
+  "don't()" -> 
+    false
+  "do()" ->
+    true
+  op ->
+    [a, b] = op
+    |> String.replace(["(", ")", "mul"], "")
+    |> String.split(",")
+    |> Enum.map(&String.to_integer/1)
+    a * b
+end)
+|> Enum.reduce({true, 0}, fn 
+  number, {_toggle, acc} when is_boolean(number) -> 
+    {number, acc}
+  _number, {false, acc} ->
+    {false, acc}
+  number, {true, acc} ->
+    {true, acc + number}
+end)
+|> elem(1)
+```
+
+## Day4
+
+```elixir
+example = """
+MMMSXXMASM
+MSAMXMSMSA
+AMXSXMAAMM
+MSAMASMSMX
+XMASAMXAMM
+XXAMMXXAMA
+SMSMSASXSS
+SAXAMASAAA
+MAMMMXMMMM
+MXMXAXMASX
+"""
+
+example = """
+.M.S......
+..A..MSMS.
+.M.S.MAA..
+..A.ASMSM.
+.M.S.M....
+..........
+S.S.S.S.S.
+.A.A.A.A..
+M.M.M.M.M.
+..........
+"""
+
+example = File.read!("AOC/day4/input.txt")
+
+```
+
+```elixir
+matrix = 
+  example
+  |> String.split("\r\n", trim: true)
+  |> Enum.reduce({0, %{}}, fn line, {y, acc} -> 
+    row = line
+    |> String.split("", trim: true)
+    |> Enum.with_index(fn item, index -> {index, item} end)
+    |> Enum.into(%{})
+  
+    {y+1, Map.put(acc, y, row)}
+  end)
+  |> elem(1)
+```
+
+```elixir
+defmodule Day4 do
+  @a [{0,0}, {0, 1}, {0, 2}, {0,3}]
+  @b [{0,0}, {1, 0}, {2, 0}, {3, 0}]
+  @c [{0,0}, {1, 1}, {2, 2}, {3, 3}]
+  @e [{0,0}, {-1, 1}, {-2, 2}, {-3, 3}]
+  @ops [@a, @b, @c, @e]
+
+  @op2 [[{0,0}, {1, 1}, {2, 2}], [{2,0}, {1, 1}, {0, 2}]]
+
+  def run(matrix) do
+    max_vert = Enum.count(matrix) - 1
+    max_hoz = Enum.count(matrix[0]) - 1
+    for y <- 0..max_vert, x <- 0..max_hoz do
+      Enum.map(@ops, fn op -> 
+        for {index_y, index_x} <- op, into: "" do
+          item = matrix[index_y + y][index_x + x]
+          if is_nil(item), do: "", else: item
+        end
+      end)
+    end
+    |> List.flatten()
+    |> Enum.join(".")
+    |> then(&Regex.scan(~r/XMAS|SAMX/, &1))
+    |> Enum.count()
+  end
+
+  def run2(matrix) do
+    max_vert = Enum.count(matrix) - 1
+    max_hoz = Enum.count(matrix[0]) - 1
+    for y <- 0..max_vert, x <- 0..max_hoz do
+      [a, b] = Enum.map(@op2, fn op -> 
+        for {index_y, index_x} <- op, into: "" do
+          item = matrix[index_y + y][index_x + x]
+          if is_nil(item), do: "", else: item
+        end
+      end)
+
+      Regex.match?(~r/MAS|SAM/, a) and Regex.match?(~r/MAS|SAM/, b)
+    end
+    |> Enum.filter(& &1)
+    |> Enum.count()
+  end
+end
+
+"Part1: #{Day4.run(matrix)} Part2: #{Day4.run2(matrix)}"
+
+```
+
+## Day 5
+
+```elixir
+example = """
+47|53
+97|13
+97|61
+97|47
+75|29
+61|13
+75|53
+29|13
+97|29
+53|29
+61|53
+97|53
+61|29
+47|13
+75|47
+97|75
+47|61
+75|61
+47|29
+75|13
+53|13
+
+75,47,61,53,29
+97,61,53,29,13
+75,29,13
+75,97,47,61,53
+61,13,29
+97,13,75,29,47
+"""
+
+example = File.read!("AOC/day5/input.txt")
+
+[rules, updates] = String.split(example, "\n\r\n", trim: true)
+rules = String.split(rules, "\n", trim: true) |> Enum.map(&String.replace(&1, "\r", ""))
+updates = 
+  String.split(updates, "\n", trim: true) |> Enum.map(&String.replace(&1, "\r", ""))
+  |> Enum.map(&String.split(&1, ","))
+  |> update_in([Access.all(), Access.all()], &String.to_integer/1)
+```
+
+```elixir
+key = fn item -> 
+  item
+  |> String.split("|")
+  |> List.first()
+  |> String.to_integer()
+end
+value = fn item ->
+  item
+  |> String.split("|")
+  |> List.last()
+  |> String.to_integer()
+end
+
+rules = rules
+|> Enum.group_by(key, value)
+|> Map.new(fn {k, v} -> {k, Enum.sort(v)} end)
+```
+
+```elixir
+sorter = fn a, b -> 
+  if Map.has_key?(rules, a) do
+    b in rules[a]
+  else
+    false
+  end
+end
+
+Enum.filter(updates, fn update -> 
+  sorted = Enum.sort(update, sorter)
+  sorted == update
+end)
+|> Enum.reduce(0, fn update, acc -> 
+  Enum.at(update, trunc(Enum.count(update)/2)) + acc
+end)
+```
+
+```elixir
+Enum.filter(updates, fn update -> 
+  Enum.sort(update, sorter) != update
+end)
+|> Enum.reduce(0, fn update, acc -> 
+  (update
+  |> Enum.sort(sorter)
+  |> Enum.at(trunc(Enum.count(update)/2))) + acc
+end)
+```
+
+## Day6
+
+```elixir
+example = """
+....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#...
+"""
+
+example = File.read!("AOC/day6/input.txt")
+
+matrix =
+  example
+  |> String.split("\r\n", trim: true)
+  |> Enum.reduce({0, %{}}, fn line, {y, acc} -> 
+    row = line
+    |> String.split("", trim: true)
+    |> Enum.with_index(fn item, index -> {index, item} end)
+    |> Enum.into(%{})
+  
+    {y+1, Map.put(acc, y, row)}
+  end)
+  |> elem(1)
+```
+
+```elixir
+# find guard pos
+guard = "^"
+lastY = Enum.count(matrix) - 1
+lastX = Enum.count(matrix[0]) - 1
+{guardY, guardX} = 
+  for y <- 0..lastY, x <- 0..lastX, reduce: nil do
+    acc ->
+      if matrix[y][x] == guard do
+        {y, x}
+      else
+        acc
+      end
+  end
+
+defmodule Day5 do
+  # dictates next direciton loops to itself
+  @direction_mapper %{
+    {1, 0} => {0, 1},
+    {0, 1} => {-1, 0},
+    {-1, 0} => {0, -1},
+    {0, -1} => {1, 0}
+  }
+
+  @direction_to %{
+    {1, 0} => {-1, 0},
+    {0, 1} => {0, 1},
+    {-1, 0} => {1, 0},
+    {0, -1} => {0, -1}
+  }
+
+  @wall "#"
+  @max_steps 10_000
+
+  def execute(matrix, starting_dir, guardY, guardX) do
+    run(matrix, starting_dir, {guardY, guardX}, [])
+    |> Enum.count
+  end
+
+  # just bruteforce it I don't want to deal with Elixir with this kind of problems
+  def execute_part_2(matrix, starting_dir, guardY, guardX) do
+    max_vert = Enum.count(matrix) - 1
+    max_hoz = Enum.count(matrix[0]) - 1
+    
+    for y <- 0..max_vert, x <- 0..max_hoz, reduce: [] do
+      acc ->
+        if x == guardX and y == guardY do
+          acc
+        else
+          [{y, x} | acc]
+        end
+    end
+    |> Enum.reverse()
+    |> Enum.map(fn {y, x} -> 
+      {{y,x}, update_in(matrix, [y, x], fn _ -> "#" end)  }
+    end)
+    |> Task.async_stream(fn {_pos, matrix} -> 
+      run_part2(matrix, starting_dir, {guardY, guardX}, [], 0)
+    end)
+    |> Enum.filter(fn {:ok, value} -> value end)
+    |> Enum.count()
+    
+  end
+
+  def run(steps), do: steps
+  def run(matrix, dir, {guardY, guardX} = pos, steps) do
+    max_vert = Enum.count(matrix) - 1
+    max_hoz = Enum.count(matrix[0]) - 1
+    
+    if guardY > max_vert or guardY < 0 or guardX > max_hoz or guardX < 0 do
+      run(steps)
+    else
+      {dirY, dirX} = @direction_to[dir]
+      newY = dirY + guardY
+      newX = dirX + guardX
+      if matrix[newY][newX] == @wall do
+        run(matrix, @direction_mapper[dir], pos, steps)
+      else
+        step = {guardY, guardX}
+        steps = if step in steps, do: steps, else: [step | steps]
+        run(matrix, dir, {newY, newX}, steps)
+      end
+    end
+  end
+
+  def run_part2(_steps), do: false
+  def run_part2(matrix, dir, {guardY, guardX} = pos, steps, iterations) when iterations < @max_steps do
+    max_vert = Enum.count(matrix) - 1
+    max_hoz = Enum.count(matrix[0]) - 1
+    
+    if guardY > max_vert or guardY < 0 or guardX > max_hoz or guardX < 0 do
+      run_part2(steps)
+    else
+      {dirY, dirX} = @direction_to[dir]
+      newY = dirY + guardY
+      newX = dirX + guardX
+      if matrix[newY][newX] == @wall do
+        run_part2(matrix, @direction_mapper[dir], pos, steps, iterations + 1)
+      else
+        step = {guardY, guardX}
+        steps = if step in steps, do: steps, else: [step | steps]
+        run_part2(matrix, dir, {newY, newX}, steps, iterations + 1)
+      end
+    end
+  end
+  def run_part2(_matrix, _dir, _pos, _steps, _iterations), do: true
+end
+
+starting_dir = {1, 0} #up
+Day5.execute(matrix, starting_dir, guardY, guardX)
+```
+
+```elixir
+#Day5.execute_part_2(matrix, starting_dir, guardY, guardX)
+1705 #takes about 1min 30 secs
+```
