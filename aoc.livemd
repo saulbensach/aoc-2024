@@ -541,3 +541,75 @@ Day5.execute(matrix, starting_dir, guardY, guardX)
 #Day5.execute_part_2(matrix, starting_dir, guardY, guardX)
 1705 #takes about 1min 30 secs
 ```
+
+## Day7
+
+```elixir
+example = """
+190: 10 19
+3267: 81 40 27
+83: 17 5
+156: 15 6
+7290: 6 8 6 15
+161011: 16 10 13
+192: 17 8 14
+21037: 9 7 18 13
+292: 11 6 16 20
+"""
+#example = File.read!("AOC/day7/input.txt")
+
+defmodule Day7 do
+  #contains repetitions
+  def combine(numbers, operands, expected) do
+    combine(numbers, operands, expected, [])
+  end
+
+  defp combine([], _, _, acc), do: Enum.reverse(acc) |> List.delete_at(0) |> execute()
+  
+  defp combine([next | rest], operands, expected, acc) do
+    for op <- operands do
+      combine(rest, operands, expected, [next, op | acc])
+    end
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.filter(& &1 == expected)
+    |> List.first()
+  end
+
+  def execute(line) do
+    Enum.reduce(line, {0, &Kernel.+/2}, fn 
+      number, {acc, _op} when is_function(number) -> 
+        {acc, number}
+  
+      number, {0, op} ->
+        {number, op}
+        
+      number, {acc, op} ->
+        {op.(acc, number), op}
+    end)
+    |> elem(0)
+  end
+end
+
+operators = [&Kernel.*/2, &Kernel.+/2]
+# part2
+operators = [&Kernel.*/2, &Kernel.+/2, fn a, b -> Enum.join([a,b]) |> String.to_integer() end]
+
+String.split(example, "\n", trim: true)
+|> Task.async_stream(fn item -> 
+  [total, values] = String.split(item, ":")
+  values = values
+  |> String.trim_leading()
+  |> String.split(" ", trim: true)
+  |> Enum.map(&String.to_integer/1)
+
+  values = Day7.combine(values, operators, String.to_integer(total))
+
+  %{total: String.to_integer(total), values: values}
+  end, ordered: false, max_concurrency: 16, timeout: :infinity)
+|> Enum.map(fn {:ok, res} -> res end)
+|> Enum.filter(& &1.total == &1.values)
+|> Enum.map(& &1.total)
+|> Enum.sum()
+
+```
